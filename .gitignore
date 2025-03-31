@@ -1,0 +1,13 @@
+store/
+
+!mc1/plugins/.gitkeep
+
+proxy/plugins/*.jar
+!proxy/plugins/.gitkeep
+
+discord/node_modules/
+discord/config.json
+
+*.secret
+*.env
+!*.env.example

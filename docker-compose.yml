@@ -1,0 +1,103 @@
+version: '3.8'
+networks:
+  minecraft-network:
+    driver: bridge
+
+services:
+  discord-bot:
+    networks:
+      - minecraft-network
+    image: node:18
+    user: $UID:$GID
+    working_dir: /app
+    volumes:
+      - ./discord:/app
+    command: node index.js
+    ports:
+      - "8080:8080" 
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped
+
+  proxy:
+    networks:
+      - minecraft-network
+    user: $UID:$GID
+    image: itzg/bungeecord
+    ports:
+      - "25565:25565"
+      - "25565:25565/udp" 
+      - "24454:24454/udp"
+    environment:
+      UID: $UID
+      GID: $GID
+      TYPE: "VELOCITY"
+      VELOCITY_VERSION: "3.4.0-SNAPSHOT"
+      VELOCITY_BUILD_ID: "469"
+      ENABLE_RCON: "TRUE"
+      PLUGINS_FILE: "/config/plugins.txt"
+      REPLACE_ENV_VARIABLES: "TRUE"
+      ENV_VARIABLE_PREFIX: "CFG_"
+      CFG_MYSQL_HOST: database
+      CFG_MYSQL_PORT: 3306
+    volumes:
+      - ./store/proxy:/server
+      - ./proxy/plugins:/plugins
+      - ./velocity.secret:/config/velocity.secret
+      - ./proxy/config/plugins.txt:/config/plugins.txt
+      - ./proxy/config/velocity.toml:/config/velocity.toml
+    env_file:
+      - ./proxy.env
+    depends_on:
+      - survival1
+    restart: unless-stopped
+
+  survival1:
+    user: $UID:$GID
+    image: itzg/minecraft-server
+    environment:
+      UID: $UID
+      GID: $GID
+      TYPE: "PAPER"
+      EULA: "TRUE"
+      PAPER_VERSION: "1.21.4"
+      ONLINE_MODE: "FALSE"
+      PLUGINS_FILE: "/plugins.txt"
+      SPAWN_PROTECTION: "0"
+      REPLACE_ENV_VARIABLES: "TRUE"
+      ENV_VARIABLE_PREFIX: "CFG_"
+      PATCH_DEFINITIONS: /config/patch-definitions.json
+      CFG_VELOCITY_ENABLED: "true"
+      CFG_VELOCITY_SECRET_FILE: /config/velocity.secret
+      CFG_MYSQL_HOST: database
+      CFG_MYSQL_PORT: 3306
+    networks:
+      - minecraft-network
+    env_file:
+      - ./survival1.env
+    volumes:
+      - ./store/mc1:/data
+      - ./mc1/plugins:/plugins
+      - ./mc1/config/plugins.txt:/plugins.txt
+      - ./mc1/config/patch-definitions.json:/config/patch-definitions.json
+      - ./velocity.secret:/config/velocity.secret
+    depends_on:
+      - database
+    restart: unless-stopped
+
+  database:
+    networks:
+      - minecraft-network
+    image: mariadb:11.4.5
+    environment:
+      MYSQL_ROOT_HOST: "%"
+    env_file:
+      - ./database.env
+    volumes:
+      - database-data:/var/lib/mysql
+    restart: unless-stopped
+
+volumes:
+  database-data:
+  proxy-data:
+  
